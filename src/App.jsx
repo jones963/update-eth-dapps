@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { TOKEN_ADDRESSES } from './utils/constants';
+import heroImage from '../image/IMG_1843-C8rrS31_.jpeg';
 
 function formatUnits(rawValue, decimals, displayPlaces = 6) {
   const value = BigInt(rawValue);
@@ -55,7 +56,16 @@ function App() {
   const [usdtDestination, setUsdtDestination] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [transactionMessage, setTransactionMessage] = useState('');
+  const walletActionRef = useRef(null);
   const isConnected = Boolean(address);
+
+  const focusWalletAction = () => {
+    walletActionRef.current?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'center',
+    });
+    walletActionRef.current?.focus({ preventScroll: true });
+  };
 
   useEffect(() => {
     if (!walletProvider?.on) return undefined;
@@ -288,38 +298,59 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="/" aria-label="Multi-chain Wallet Dashboard home">
-          <span className="brand-mark" aria-hidden="true">E</span>
+          <img className="brand-mark" src={heroImage} alt="" aria-hidden="true" />
           <span>Multi-chain Wallet Dashboard</span>
         </a>
-        <span className="preview-badge">
+        <span className={`preview-badge${isConnected ? ' is-connected' : ' is-disconnected'}`} role="status">
           <span className="status-dot" />
-          Wallet actions enabled
+          {isConnected ? 'Wallet connected' : 'Wallet disconnected'}
         </span>
       </header>
 
       <div className="dashboard">
         <section className="intro">
-          <div>
-            <p className="eyebrow">Portfolio dashboard</p>
-            <h1>Manage your assets</h1>
+          <div className="hero-copy">
+            <p className="hero-kicker"><span /> Portfolio dashboard</p>
+            <h1>Manage your assets.<br /><span>Move with confidence.</span></h1>
             <p className="intro-copy">
-              Review balances and send native or USDT assets with wallet approval.
+              Review balances and send native or USDT assets securely, with every transaction confirmed by your wallet.
             </p>
+            <div className="hero-actions">
+              {isConnected ? (
+                <button
+                  ref={walletActionRef}
+                  className="connect-button"
+                  type="button"
+                  onClick={disconnectWallet}
+                >
+                  Disconnect app
+                </button>
+              ) : (
+                <button
+                  ref={walletActionRef}
+                  className="connect-button"
+                  type="button"
+                  disabled={isConnecting}
+                  onClick={connectWallet}
+                >
+                  {isConnecting ? 'Connecting…' : 'Connect wallet'}
+                </button>
+              )}
+              <span className="hero-network"><span className="status-dot" /> Ethereum, BNB &amp; Polygon</span>
+            </div>
           </div>
-          {isConnected ? (
-            <button className="connect-button" type="button" onClick={disconnectWallet}>
-              Disconnect app
-            </button>
-          ) : (
-            <button
-              className="connect-button"
-              type="button"
-              disabled={isConnecting}
-              onClick={connectWallet}
-            >
-              {isConnecting ? 'Connecting…' : 'Connect wallet'}
-            </button>
-          )}
+          <div className="hero-visual" aria-label="Ethereum network artwork">
+            <div className="hero-glow" />
+            <img src={heroImage} alt="Futuristic Ethereum artwork" />
+            <div className="hero-stat hero-stat-top">
+              <span>Networks</span>
+              <strong>3+</strong>
+            </div>
+            <div className="hero-stat hero-stat-bottom">
+              <span>Wallet access</span>
+              <strong>{isConnected ? 'Connected' : 'Secure'}</strong>
+            </div>
+          </div>
         </section>
 
         {isConnected && (
@@ -354,96 +385,98 @@ function App() {
           </p>
         </section>
 
-        <section className="assets-section" aria-labelledby="assets-title">
-          <div className="section-heading">
+        <details className="assets-section collapsible-card">
+          <summary className="section-heading collapsible-heading" aria-labelledby="assets-title">
             <div>
               <p className="eyebrow">Supported networks and tokens</p>
               <h2 id="assets-title">Your assets</h2>
             </div>
             <span className="asset-count">{isConnected ? chainName : '3 supported networks'}</span>
-          </div>
+          </summary>
           <div className="asset-list">
-            <div className="asset-row">
-              <span className="asset-icon usdt">$</span>
-              <span className="asset-name">
-                <strong>USDT</strong>
-                <small>{usdtDescription}</small>
-              </span>
-              <span className="asset-value">
-                {isLoadingBalances ? 'Loading…' : balances?.usdt ?? '—'}
-              </span>
+            <div className="asset-panel">
+              <div className="asset-row">
+                <span className="asset-icon usdt">$</span>
+                <span className="asset-name">
+                  <strong>USDT</strong>
+                  <small>{usdtDescription}</small>
+                </span>
+                <span className="asset-value">
+                  {isLoadingBalances ? 'Loading…' : balances?.usdt ?? '—'}
+                </span>
+              </div>
+              {isConnected && (
+                <div className="asset-transfer">
+                  <label className="destination-field" htmlFor="usdt-destination">
+                    <span>USDT destination</span>
+                    <input
+                      id="usdt-destination"
+                      type="text"
+                      value={usdtDestination}
+                      onChange={(event) => setUsdtDestination(event.target.value)}
+                      placeholder="0x..."
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                    <small>Transfers the full USDT balance shown on the selected network.</small>
+                  </label>
+                  <button
+                    className="sweep-button main"
+                    type="button"
+                    disabled={isSending || isLoadingBalances}
+                    onClick={sendUsdtBalance}
+                  >
+                    {isSending ? 'Waiting for wallet…' : 'Send USDT'}
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="asset-row">
-              <span className="asset-icon native-asset">
-                {nativeSymbol === 'ETH' ? 'Ξ' : nativeSymbol === 'BNB' ? '◆' : nativeSymbol === 'POL' ? '⬡' : '◉'}
-              </span>
-              <span className="asset-name">
-                <strong>{nativeSymbol}</strong>
-                <small>{isConnected ? chainName : 'Native token'}</small>
-              </span>
-              <span className="asset-value">
-                {isLoadingBalances ? 'Loading…' : balances?.native ?? '—'}
-              </span>
+            <div className="asset-panel">
+              <div className="asset-row">
+                <span className="asset-icon native-asset">
+                  {nativeSymbol === 'ETH' ? 'Ξ' : nativeSymbol === 'BNB' ? '◆' : nativeSymbol === 'POL' ? '⬡' : '◉'}
+                </span>
+                <span className="asset-name">
+                  <strong>{nativeSymbol}</strong>
+                  <small>{isConnected ? chainName : 'Native token'}</small>
+                </span>
+                <span className="asset-value">
+                  {isLoadingBalances ? 'Loading…' : balances?.native ?? '—'}
+                </span>
+              </div>
+              {isConnected && (
+                <div className="asset-transfer">
+                  <label className="destination-field" htmlFor="native-destination">
+                    <span>{nativeSymbol} destination</span>
+                    <input
+                      id="native-destination"
+                      type="text"
+                      value={nativeDestination}
+                      onChange={(event) => setNativeDestination(event.target.value)}
+                      placeholder="0x..."
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                    <small>Transfers the available native balance minus the estimated network fee.</small>
+                  </label>
+                  <button
+                    className="sweep-button main"
+                    type="button"
+                    disabled={isSending || isLoadingBalances}
+                    onClick={sendNativeBalance}
+                  >
+                    {isSending ? 'Waiting for wallet…' : `Send ${nativeSymbol}`}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        </section>
-
-        {isConnected && (
-          <section className="transfer-card" aria-labelledby="transfer-title">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Explicit asset transfer</p>
-                <h2 id="transfer-title">Send wallet assets</h2>
-              </div>
-            </div>
-            <label className="destination-field">
-              <span>{nativeSymbol} destination</span>
-              <input
-                type="text"
-                value={nativeDestination}
-                onChange={(event) => setNativeDestination(event.target.value)}
-                placeholder="0x..."
-                autoComplete="off"
-                spellCheck="false"
-              />
-              <small>Transfers the available native balance minus the estimated network fee.</small>
-            </label>
-            <button
-              className="sweep-button main"
-              type="button"
-              disabled={isSending || isLoadingBalances}
-              onClick={sendNativeBalance}
-            >
-              {isSending ? 'Waiting for wallet…' : `Send ${nativeSymbol}`}
-            </button>
-
-            <label className="destination-field usdt-field">
-              <span>USDT destination</span>
-              <input
-                type="text"
-                value={usdtDestination}
-                onChange={(event) => setUsdtDestination(event.target.value)}
-                placeholder="0x..."
-                autoComplete="off"
-                spellCheck="false"
-              />
-              <small>Transfers the full USDT balance shown on the selected network.</small>
-            </label>
-            <button
-              className="sweep-button main"
-              type="button"
-              disabled={isSending || isLoadingBalances}
-              onClick={sendUsdtBalance}
-            >
-              {isSending ? 'Waiting for wallet…' : 'Send USDT'}
-            </button>
-            {transactionMessage && (
-              <p className="sweep-message" role="status">
-                {transactionMessage}
-              </p>
-            )}
-          </section>
-        )}
+          {isConnected && transactionMessage && (
+            <p className="sweep-message" role="status">
+              {transactionMessage}
+            </p>
+          )}
+        </details>
 
         <section className="services-section" aria-labelledby="services-title">
           <div className="section-heading services-heading">
@@ -457,14 +490,19 @@ function App() {
           </div>
           <div className="services-grid">
             {services.map((service) => (
-              <article className="service-card" key={service.title}>
+              <button
+                className="service-card"
+                key={service.title}
+                type="button"
+                onClick={focusWalletAction}
+              >
                 <span className="service-icon" aria-hidden="true">{service.icon}</span>
                 <div className="service-content">
                   <h3>{service.title}</h3>
                   <p>{service.description}</p>
                 </div>
                 <span className="service-arrow" aria-hidden="true">→</span>
-              </article>
+              </button>
             ))}
           </div>
         </section>
